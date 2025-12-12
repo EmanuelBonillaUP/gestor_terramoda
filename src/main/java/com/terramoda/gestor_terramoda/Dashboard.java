@@ -548,61 +548,167 @@ public class Dashboard extends JFrame {
 
   }
 
-  JPanel panelProductRegister() {
-    var p = new JPanel();
+  public JPanel panelProductRegister() {
+    var p = new JPanel(new GridBagLayout());
     p.setOpaque(false);
-    p.setLayout(new BoxLayout(p, BoxLayout.Y_AXIS));
-    var lblTitle = new JLabel("REGISTRAR PRODUCTO");
-    lblTitle.setOpaque(false);
-    var skuField = field("SKU", 15);
-    var nameField = field("Nombre", 20);
-    var descriptionField = field("Descripcion", 40);
-    var stockField = field("Stock", 5);
-    var priceField = field("Precio", 10);
-    var btnRegister = new JButton("REGISTRAR");
-    p.add(lblTitle);
-    p.add(skuField.a());
-    p.add(nameField.a());
-    p.add(descriptionField.a());
-    p.add(stockField.a());
-    p.add(priceField.a());
-    p.add(btnRegister);
-    btnRegister.addActionListener(l -> {
-      var sku = skuField.b().getText();
-      var name = nameField.b().getText();
-      var description = descriptionField.b().getText();
+    p.setBorder(new EmptyBorder(20, 40, 20, 40));
 
-      float price;
-      int stock;
-      try {
-        price = Float.parseFloat(priceField.b().getText());
-        stock = Integer.parseInt(stockField.b().getText());
-      } catch (NumberFormatException e) {
-        JOptionPane.showMessageDialog(p, "Error Stock o Price no son valores numericos validos",
-            "Error Editando Producto", JOptionPane.ERROR_MESSAGE);
+    GridBagConstraints gbc = new GridBagConstraints();
+    gbc.insets = new Insets(8, 8, 8, 8);
+    gbc.fill = GridBagConstraints.HORIZONTAL;
+    gbc.anchor = GridBagConstraints.WEST;
+
+    // Title
+    var lblTitle = new JLabel("REGISTRAR PRODUCTO", SwingConstants.CENTER);
+    lblTitle.setFont(new Font(font(), Font.BOLD, fontTitleSize()));
+    gbc.gridx = 0;
+    gbc.gridy = 0;
+    gbc.gridwidth = 2;
+    gbc.weightx = 1;
+    p.add(lblTitle, gbc);
+
+    gbc.gridwidth = 1;
+    gbc.weightx = 0;
+
+    // SKU
+    gbc.gridy = 1;
+    gbc.gridx = 0;
+    p.add(new JLabel("SKU:"), gbc);
+
+    gbc.gridx = 1;
+    gbc.weightx = 1;
+    var skuField = new JTextField(20);
+    skuField.setPreferredSize(new Dimension(300, 28));
+    p.add(skuField, gbc);
+
+    // Nombre
+    gbc.gridy = 2;
+    gbc.gridx = 0;
+    gbc.weightx = 0;
+    p.add(new JLabel("Nombre:"), gbc);
+
+    gbc.gridx = 1;
+    gbc.weightx = 1;
+    var nameField = new JTextField(30);
+    nameField.setPreferredSize(new Dimension(300, 28));
+    p.add(nameField, gbc);
+
+    // Descripcion (textarea con scroll)
+    gbc.gridy = 3;
+    gbc.gridx = 0;
+    gbc.anchor = GridBagConstraints.NORTHWEST;
+    gbc.weightx = 0;
+    p.add(new JLabel("Descripción:"), gbc);
+
+    gbc.gridx = 1;
+    gbc.weightx = 1;
+    gbc.fill = GridBagConstraints.BOTH;
+    var descriptionArea = new JTextArea(4, 30);
+    descriptionArea.setLineWrap(true);
+    descriptionArea.setWrapStyleWord(true);
+    var descScroll = new JScrollPane(descriptionArea);
+    descScroll.setPreferredSize(new Dimension(400, 100));
+    p.add(descScroll, gbc);
+
+    // Reset fill/anchor for the rest
+    gbc.fill = GridBagConstraints.HORIZONTAL;
+    gbc.anchor = GridBagConstraints.WEST;
+
+    // Stock + Precio in a single compact row
+    gbc.gridy = 4;
+    gbc.gridx = 0;
+    gbc.weightx = 0;
+    p.add(new JLabel("Stock:"), gbc);
+
+    gbc.gridx = 1;
+    gbc.weightx = 1;
+    // Use JSpinner for stock so the user cannot type invalid negative values
+    var stockSpinner = new JSpinner(new SpinnerNumberModel(0, 0, Integer.MAX_VALUE, 1));
+    stockSpinner.setPreferredSize(new Dimension(100, 28));
+    var stockPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
+    stockPanel.setOpaque(false);
+    stockPanel.add(stockSpinner);
+    p.add(stockPanel, gbc);
+
+    gbc.gridx = 0;
+    gbc.gridy = 5;
+    gbc.weightx = 0;
+    p.add(new JLabel("Precio (COP):"), gbc);
+
+    gbc.gridx = 1;
+    gbc.weightx = 1;
+    var priceField = new JFormattedTextField(new java.text.DecimalFormat("#0.00"));
+    priceField.setValue(0.00);
+    priceField.setColumns(10);
+    priceField.setPreferredSize(new Dimension(120, 28));
+    var pricePanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
+    pricePanel.setOpaque(false);
+    pricePanel.add(priceField);
+    p.add(pricePanel, gbc);
+
+    // Register button centered
+    gbc.gridy = 6;
+    gbc.gridx = 0;
+    gbc.gridwidth = 2;
+    gbc.weightx = 1;
+    gbc.anchor = GridBagConstraints.CENTER;
+    var btnRegister = new JButton("REGISTRAR");
+    btnRegister.setPreferredSize(new Dimension(140, 32));
+    p.add(btnRegister, gbc);
+
+    // Action: validate and create product
+    btnRegister.addActionListener(l -> {
+      var sku = skuField.getText().trim();
+      var name = nameField.getText().trim();
+      var description = descriptionArea.getText().trim();
+
+      if (sku.isEmpty() || name.isEmpty()) {
+        JOptionPane.showMessageDialog(p, "SKU y Nombre son obligatorios", "Campos faltantes",
+            JOptionPane.WARNING_MESSAGE);
         return;
       }
-      if (stock < 0 || price <= 0) {
-        JOptionPane.showMessageDialog(p, "Error Stock o Price no son valores validos", "Error Editando Producto",
+
+      int stock;
+      double price;
+      try {
+        stock = (Integer) stockSpinner.getValue();
+        price = ((Number) priceField.getValue()).doubleValue();
+      } catch (Exception ex) {
+        JOptionPane.showMessageDialog(p, "Stock o Precio no son valores válidos", "Error de validación",
             JOptionPane.ERROR_MESSAGE);
         return;
       }
+
+      if (stock < 0 || price <= 0) {
+        JOptionPane.showMessageDialog(p, "Stock debe ser >= 0 y Precio > 0", "Valores inválidos",
+            JOptionPane.ERROR_MESSAGE);
+        return;
+      }
+
       var productToCreate = new ProductToCreate();
       productToCreate.sku = sku;
       productToCreate.name = name;
-      productToCreate.stock = stock;
-      productToCreate.price = price;
       productToCreate.description = description;
+      productToCreate.stock = stock;
+      productToCreate.price = (float) price;
+
       try {
         this.client.createProduct(productToCreate);
         JOptionPane.showMessageDialog(null, "Producto Registrado Exitosamente", "Registro Exitoso",
             JOptionPane.INFORMATION_MESSAGE);
+        // Clear fields after success
+        skuField.setText("");
+        nameField.setText("");
+        descriptionArea.setText("");
+        stockSpinner.setValue(0);
+        priceField.setValue(0.00);
       } catch (Exception e) {
         System.out.println(e);
         JOptionPane.showMessageDialog(p, "Error Registrando producto", "Error Registrando Producto",
             JOptionPane.ERROR_MESSAGE);
       }
     });
+
     return p;
   }
 
