@@ -120,6 +120,10 @@ public class Dashboard extends JFrame {
   JPanel contentPanel;
   GestorVentasClient client;
 
+  public static int perPage() {
+    return 20;
+  }
+
   public static String fontY() {
     return "Instrument Sans";
   }
@@ -354,11 +358,11 @@ public class Dashboard extends JFrame {
 
     // Eventos
     btnSalesRegister.addActionListener(e -> setView(panelSaleRegister()));
-    btnSalesList.addActionListener(e -> setView(panelSales(1, 10)));
+    btnSalesList.addActionListener(e -> setView(panelSales(1, perPage())));
     btnCustomersRegister.addActionListener(e -> setView(panelCustomerRegister()));
-    btnCustomersList.addActionListener(e -> setView(panelCustomers(1, 10)));
+    btnCustomersList.addActionListener(e -> setView(panelCustomers(1, perPage())));
     btnProductsRegister.addActionListener(e -> setView(panelProductRegister()));
-    btnProductsList.addActionListener(e -> setView(panelProducts(1, 10)));
+    btnProductsList.addActionListener(e -> setView(panelProducts(1, perPage())));
     // btnReports.addActionListener(e -> setView(new PanelReportes()));
 
     setVisible(true);
@@ -418,62 +422,6 @@ public class Dashboard extends JFrame {
     return new Pair(p, fld);
   }
 
-  JPanel panelProductEdit(Product v) {
-    var p = new JPanel();
-    p.setPreferredSize(new Dimension(480, 400));
-    p.setLayout(new BoxLayout(p, BoxLayout.Y_AXIS));
-    p.setBorder(new EmptyBorder(40, 40, 40, 40));
-    var lblTitle = new JLabel("EDITAR PRODUCTO " + v.sku);
-    lblTitle.setOpaque(false);
-    var nameField = editableField("Nombre", v.name, 15);
-    var descriptionField = editableField("Descripcion", v.description, 50);
-    var priceField = editableField("Precio", String.valueOf(v.price), 10);
-    var stockField = editableField("Stock", String.valueOf(v.stock), 10);
-    var btnEdit = new JButton("EDITAR");
-    p.add(lblTitle);
-    p.add(nameField.a());
-    p.add(descriptionField.a());
-    p.add(priceField.a());
-    p.add(stockField.a());
-    p.add(btnEdit);
-    btnEdit.addActionListener(l -> {
-      var name = nameField.b().getText();
-      var description = descriptionField.b().getText();
-      var priceString = priceField.b().getText();
-      var stockString = stockField.b().getText();
-
-      float price = 0;
-      int stock = 0;
-      try {
-        price = Float.valueOf(priceString);
-        stock = Integer.valueOf(stockString);
-      } catch (Exception e) {
-        JOptionPane.showMessageDialog(p, "Error Stock o Price no son valores numericos validos",
-            "Error Editando Producto", JOptionPane.ERROR_MESSAGE);
-        return;
-      }
-      if (stock < 0 || price <= 0) {
-        JOptionPane.showMessageDialog(p, "Error Stock o Price no son valores validos", "Error Editando Producto",
-            JOptionPane.ERROR_MESSAGE);
-        return;
-      }
-      var editable = new ProductToEdit();
-      editable.name = name;
-      editable.description = description;
-      editable.price = price;
-      editable.stock = stock;
-      try {
-        this.client.editProduct(v.id, editable);
-        JOptionPane.showMessageDialog(null, "Producto Editado Exitosamente", "Exito", JOptionPane.INFORMATION_MESSAGE);
-      } catch (Exception e) {
-        System.out.println(e);
-        JOptionPane.showMessageDialog(p, "Error editando producto", "Error Editando Producto",
-            JOptionPane.ERROR_MESSAGE);
-      }
-    });
-    return p;
-  }
-
   JPanel panelProductView(Product v) {
     Object[][] data = {
         { "SKU", v.sku },
@@ -483,6 +431,153 @@ public class Dashboard extends JFrame {
         { "Stock", v.stock }
     };
     return panelViewObjectInTable("Producto: " + v.sku, data);
+  }
+
+  public JPanel panelProductEdit(Product v) {
+    var p = new JPanel(new GridBagLayout());
+    p.setPreferredSize(new Dimension(520, 380));
+    p.setBorder(new EmptyBorder(20, 20, 20, 20));
+    p.setOpaque(false);
+
+    GridBagConstraints gbc = new GridBagConstraints();
+    gbc.insets = new Insets(8, 8, 8, 8);
+    gbc.fill = GridBagConstraints.HORIZONTAL;
+    gbc.anchor = GridBagConstraints.WEST;
+
+    // Title
+    var lblTitle = new JLabel("EDITAR PRODUCTO " + v.sku, SwingConstants.CENTER);
+    lblTitle.setFont(new Font(font(), Font.BOLD, fontTitleSize()));
+    gbc.gridx = 0;
+    gbc.gridy = 0;
+    gbc.gridwidth = 2;
+    gbc.weightx = 1;
+    p.add(lblTitle, gbc);
+
+    gbc.gridwidth = 1;
+    gbc.weightx = 0;
+
+    // Nombre
+    gbc.gridy = 1;
+    gbc.gridx = 0;
+    p.add(new JLabel("Nombre:"), gbc);
+
+    gbc.gridx = 1;
+    gbc.weightx = 1;
+    var nameField = new JTextField(v.name, 24);
+    nameField.setPreferredSize(new Dimension(300, 28));
+    p.add(nameField, gbc);
+
+    // Descripcion (textarea con scroll)
+    gbc.gridy = 2;
+    gbc.gridx = 0;
+    gbc.anchor = GridBagConstraints.NORTHWEST;
+    p.add(new JLabel("Descripción:"), gbc);
+
+    gbc.gridx = 1;
+    gbc.weightx = 1;
+    gbc.fill = GridBagConstraints.BOTH;
+    var descriptionArea = new JTextArea(v.description, 4, 24);
+    descriptionArea.setLineWrap(true);
+    descriptionArea.setWrapStyleWord(true);
+    var descScroll = new JScrollPane(descriptionArea);
+    descScroll.setPreferredSize(new Dimension(360, 100));
+    p.add(descScroll, gbc);
+
+    // Precio
+    gbc.fill = GridBagConstraints.HORIZONTAL;
+    gbc.anchor = GridBagConstraints.WEST;
+    gbc.gridy = 3;
+    gbc.gridx = 0;
+    gbc.weightx = 0;
+    p.add(new JLabel("Precio:"), gbc);
+
+    gbc.gridx = 1;
+    gbc.weightx = 1;
+    var priceField = new JFormattedTextField(new java.text.DecimalFormat("#0.00"));
+    priceField.setValue((double) v.price);
+    priceField.setColumns(10);
+    priceField.setPreferredSize(new Dimension(140, 28));
+    p.add(priceField, gbc);
+
+    // Stock
+    gbc.gridy = 4;
+    gbc.gridx = 0;
+    gbc.weightx = 0;
+    p.add(new JLabel("Stock:"), gbc);
+
+    gbc.gridx = 1;
+    gbc.weightx = 1;
+    var stockSpinner = new JSpinner(new SpinnerNumberModel(v.stock, 0, Integer.MAX_VALUE, 1));
+    stockSpinner.setPreferredSize(new Dimension(100, 28));
+    p.add(stockSpinner, gbc);
+
+    // Buttons (Edit + Cancel)
+    gbc.gridy = 5;
+    gbc.gridx = 0;
+    gbc.gridwidth = 2;
+    gbc.anchor = GridBagConstraints.CENTER;
+    gbc.fill = GridBagConstraints.NONE;
+    var btnPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 12, 0));
+    btnPanel.setOpaque(false);
+
+    var btnEdit = new JButton("GUARDAR");
+    var btnCancel = new JButton("CANCELAR");
+    btnPanel.add(btnEdit);
+    btnPanel.add(btnCancel);
+    p.add(btnPanel, gbc);
+
+    // Actions
+    btnEdit.addActionListener(l -> {
+      var name = nameField.getText().trim();
+      var description = descriptionArea.getText().trim();
+
+      double priceValue;
+      int stockValue;
+      try {
+        priceValue = ((Number) priceField.getValue()).doubleValue();
+        stockValue = (Integer) stockSpinner.getValue();
+      } catch (Exception ex) {
+        JOptionPane.showMessageDialog(p, "Precio o Stock no son valores válidos", "Error", JOptionPane.ERROR_MESSAGE);
+        return;
+      }
+
+      if (name.isEmpty()) {
+        JOptionPane.showMessageDialog(p, "El nombre no puede estar vacío", "Validación", JOptionPane.WARNING_MESSAGE);
+        return;
+      }
+      if (priceValue <= 0 || stockValue < 0) {
+        JOptionPane.showMessageDialog(p, "Precio debe ser > 0 y stock >= 0", "Validación", JOptionPane.WARNING_MESSAGE);
+        return;
+      }
+
+      var editable = new ProductToEdit();
+      editable.name = name;
+      editable.description = description;
+      editable.price = (float) priceValue;
+      editable.stock = stockValue;
+
+      try {
+        this.client.editProduct(v.id, editable);
+        JOptionPane.showMessageDialog(null, "Producto editado exitosamente", "Éxito", JOptionPane.INFORMATION_MESSAGE);
+        // cerrar el dialogo que contiene este panel si existe
+        var win = SwingUtilities.getWindowAncestor(p);
+        if (win instanceof JDialog) {
+          ((JDialog) win).dispose();
+        }
+      } catch (Exception e) {
+        System.out.println(e);
+        JOptionPane.showMessageDialog(p, "Error editando producto", "Error", JOptionPane.ERROR_MESSAGE);
+      }
+    });
+
+    btnCancel.addActionListener(l -> {
+      var win = SwingUtilities.getWindowAncestor(p);
+      if (win instanceof JDialog) {
+        ((JDialog) win).dispose();
+      }
+    });
+
+    return p;
   }
 
   JPanel panelProducts(int page, int per_page) {
@@ -535,8 +630,8 @@ public class Dashboard extends JFrame {
               }));
       var scroll = new JScrollPane(table);
       table.setFillsViewportHeight(true);
-      scroll.setPreferredSize(new Dimension(900, 300));
-      scroll.setMaximumSize(new Dimension(Integer.MAX_VALUE, 400));
+      scroll.setPreferredSize(new Dimension(900, 600));
+      scroll.setMaximumSize(new Dimension(Integer.MAX_VALUE, 600));
       p.add(scroll);
       p.add(pnlInformation);
     } catch (Exception e) {
@@ -712,56 +807,139 @@ public class Dashboard extends JFrame {
     return p;
   }
 
-  JPanel panelCustomerEdit(Customer e) {
-    var p = new JPanel();
-    p.setPreferredSize(new Dimension(480, 400));
-    p.setLayout(new BoxLayout(p, BoxLayout.Y_AXIS));
-    p.setBorder(new EmptyBorder(40, 40, 40, 40));
-    var lblTitle = new JLabel("EDITAR CLIENTE " + e.cc);
-    lblTitle.setOpaque(false);
+  public JPanel panelCustomerEdit(Customer e) {
+    var p = new JPanel(new GridBagLayout());
+    p.setPreferredSize(new Dimension(520, 300));
+    p.setBorder(new EmptyBorder(16, 20, 16, 20));
+    p.setOpaque(false);
+
+    GridBagConstraints gbc = new GridBagConstraints();
+    gbc.insets = new Insets(8, 8, 8, 8);
+    gbc.fill = GridBagConstraints.HORIZONTAL;
+    gbc.anchor = GridBagConstraints.WEST;
+
+    // Title
+    var lblTitle = new JLabel("EDITAR CLIENTE " + e.cc, SwingConstants.CENTER);
+    lblTitle.setFont(new Font(font(), Font.BOLD, fontTitleSize()));
+    gbc.gridx = 0;
+    gbc.gridy = 0;
+    gbc.gridwidth = 2;
+    gbc.weightx = 1;
+    p.add(lblTitle, gbc);
+
+    gbc.gridwidth = 1;
+    gbc.weightx = 0;
+
     // Email
-    var pEmail = new JPanel();
-    pEmail.setLayout(new BoxLayout(pEmail, BoxLayout.X_AXIS));
-    var lblEmail = new JLabel("Email: ");
-    var fldEmail = new JTextField(e.email, 20);
-    pEmail.add(lblEmail);
-    pEmail.add(fldEmail);
-    // Name
-    var pName = new JPanel();
-    pName.setLayout(new BoxLayout(pName, BoxLayout.X_AXIS));
-    var lblName = new JLabel("Nombre Completo: ");
-    var fldName = new JTextField(e.name, 20);
-    pName.add(lblName);
-    pName.add(fldName);
-    // Phone
-    var pPhone = new JPanel();
-    pPhone.setLayout(new BoxLayout(pPhone, BoxLayout.X_AXIS));
-    var lblPhone = new JLabel("Telefono: ");
-    var fldPhone = new JTextField(e.phone, 10);
-    pPhone.add(lblPhone);
-    pPhone.add(fldPhone);
-    // edit
-    var btnEdit = new JButton("GUARDAR");
-    btnEdit.addActionListener(l -> {
+    gbc.gridy = 1;
+    gbc.gridx = 0;
+    p.add(new JLabel("Email:"), gbc);
+
+    gbc.gridx = 1;
+    gbc.weightx = 1;
+    var fldEmail = new JTextField(e.email, 28);
+    fldEmail.setPreferredSize(new Dimension(320, 28));
+    p.add(fldEmail, gbc);
+
+    // Nombre completo
+    gbc.gridy = 2;
+    gbc.gridx = 0;
+    gbc.weightx = 0;
+    p.add(new JLabel("Nombre Completo:"), gbc);
+
+    gbc.gridx = 1;
+    gbc.weightx = 1;
+    var fldName = new JTextField(e.name, 28);
+    fldName.setPreferredSize(new Dimension(320, 28));
+    p.add(fldName, gbc);
+
+    // Teléfono
+    gbc.gridy = 3;
+    gbc.gridx = 0;
+    gbc.weightx = 0;
+    p.add(new JLabel("Teléfono:"), gbc);
+
+    gbc.gridx = 1;
+    gbc.weightx = 1;
+    var fldPhone = new JTextField(e.phone, 20);
+    fldPhone.setPreferredSize(new Dimension(180, 28));
+    p.add(fldPhone, gbc);
+
+    // Buttons: Guardar + Cancelar
+    gbc.gridy = 4;
+    gbc.gridx = 0;
+    gbc.gridwidth = 2;
+    gbc.anchor = GridBagConstraints.CENTER;
+    gbc.fill = GridBagConstraints.NONE;
+    var btnPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 12, 0));
+    btnPanel.setOpaque(false);
+
+    var btnSave = new JButton("GUARDAR");
+    var btnCancel = new JButton("CANCELAR");
+    btnSave.setPreferredSize(new Dimension(120, 30));
+    btnCancel.setPreferredSize(new Dimension(120, 30));
+    btnPanel.add(btnSave);
+    btnPanel.add(btnCancel);
+    p.add(btnPanel, gbc);
+
+    // Actions
+    btnSave.addActionListener(l -> {
       var toEdit = new CustomerToEdit();
-      toEdit.email = fldEmail.getText();
-      toEdit.name = fldName.getText();
-      toEdit.phone = fldPhone.getText();
+      toEdit.email = fldEmail.getText().trim();
+      toEdit.name = fldName.getText().trim();
+      if (fldPhone.getText().trim().isEmpty()) {
+        toEdit.phone = null;
+      } else {
+        toEdit.phone = fldPhone.getText().trim();
+        if (toEdit.phone.length() != 10 && !toEdit.phone.matches("\\d{10}")) {
+          JOptionPane.showMessageDialog(p, "El teléfono debe tener 10 dígitos.", "Teléfono inválido",
+              JOptionPane.WARNING_MESSAGE);
+          return;
+        }
+      }
+
+      // Validaciones simples
+      if (toEdit.name.isEmpty()) {
+        JOptionPane.showMessageDialog(p, "El nombre es obligatorio.", "Validación", JOptionPane.WARNING_MESSAGE);
+        return;
+      }
+      if (!toEdit.email.isEmpty()) {
+        String emailRegex = "^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$";
+        if (!toEdit.email.matches(emailRegex)) {
+          JOptionPane.showMessageDialog(p, "Ingrese un correo válido o deje el campo vacío.", "Email inválido",
+              JOptionPane.WARNING_MESSAGE);
+          return;
+        }
+      }
+
       try {
         this.client.editCustomer(e.id, toEdit);
-        JOptionPane.showMessageDialog(null, "Cliente Editado Exitosamente", "Exito", JOptionPane.INFORMATION_MESSAGE);
-      } catch (Exception exception) {
-        System.out.println(exception);
-        JOptionPane.showMessageDialog(p, "Error Editando el cliente", "Error Editando Cliente",
-            JOptionPane.ERROR_MESSAGE);
+        JOptionPane.showMessageDialog(null, "Cliente editado exitosamente", "Éxito", JOptionPane.INFORMATION_MESSAGE);
+
+        // cerrar el dialogo que contiene este panel si existe
+        var win = SwingUtilities.getWindowAncestor(p);
+        if (win instanceof JDialog) {
+          ((JDialog) win).dispose();
+        } else {
+          // si no está en un diálogo, refrescar la vista de clientes
+          setView(panelCustomers(1, 10));
+        }
+      } catch (Exception ex) {
+        System.out.println(ex);
+        JOptionPane.showMessageDialog(p, "Error editando el cliente", "Error", JOptionPane.ERROR_MESSAGE);
       }
     });
 
-    p.add(lblTitle);
-    p.add(pEmail);
-    p.add(pName);
-    p.add(pPhone);
-    p.add(btnEdit);
+    btnCancel.addActionListener(l -> {
+      var win = SwingUtilities.getWindowAncestor(p);
+      if (win instanceof JDialog) {
+        ((JDialog) win).dispose();
+      } else {
+        // volver a la vista anterior (opcional)
+        setView(panelCustomers(1, 10));
+      }
+    });
+
     return p;
   }
 
@@ -824,8 +1002,8 @@ public class Dashboard extends JFrame {
               }));
       var scroll = new JScrollPane(table);
       table.setFillsViewportHeight(true);
-      scroll.setPreferredSize(new Dimension(900, 300));
-      scroll.setMaximumSize(new Dimension(Integer.MAX_VALUE, 400));
+      scroll.setPreferredSize(new Dimension(900, 600));
+      scroll.setMaximumSize(new Dimension(Integer.MAX_VALUE, 600));
       p.add(scroll);
       p.add(pnlInformation);
     } catch (Exception e) {
@@ -836,72 +1014,141 @@ public class Dashboard extends JFrame {
     return p;
   }
 
-  JPanel panelCustomerRegister() {
-    var p = new JPanel();
+  public JPanel panelCustomerRegister() {
+    var p = new JPanel(new GridBagLayout());
     p.setOpaque(false);
-    p.setLayout(new BoxLayout(p, BoxLayout.Y_AXIS));
-    var lblTitle = new JLabel("REGISTRAR CLIENTE");
-    lblTitle.setOpaque(false);
+    p.setBorder(new EmptyBorder(20, 40, 20, 40));
 
-    // cc
-    var pCc = new JPanel();
-    pCc.setLayout(new BoxLayout(pCc, BoxLayout.X_AXIS));
-    var lblCc = new JLabel("Cedula: ");
-    var fldCc = new JTextField(10);
-    pCc.add(lblCc);
-    pCc.add(fldCc);
-    // email
-    var pEmail = new JPanel();
-    pEmail.setLayout(new BoxLayout(pEmail, BoxLayout.X_AXIS));
-    var lblEmail = new JLabel("Email: ");
-    var fldEmail = new JTextField(20);
-    pEmail.add(lblEmail);
-    pEmail.add(fldEmail);
-    // Name
-    var pName = new JPanel();
-    pName.setLayout(new BoxLayout(pName, BoxLayout.X_AXIS));
-    var lblName = new JLabel("Nombre Completo: ");
-    var fldName = new JTextField(20);
-    pName.add(lblName);
-    pName.add(fldName);
-    // Phone
-    var pPhone = new JPanel();
-    pPhone.setLayout(new BoxLayout(pPhone, BoxLayout.X_AXIS));
-    var lblPhone = new JLabel("Telefono: ");
-    var fldPhone = new JTextField(10);
-    pPhone.add(lblPhone);
-    pPhone.add(fldPhone);
+    GridBagConstraints gbc = new GridBagConstraints();
+    gbc.insets = new Insets(8, 8, 8, 8);
+    gbc.fill = GridBagConstraints.HORIZONTAL;
+    gbc.anchor = GridBagConstraints.WEST;
 
-    // button crate
+    // Título
+    var lblTitle = new JLabel("REGISTRAR CLIENTE", SwingConstants.CENTER);
+    lblTitle.setFont(new Font(font(), Font.BOLD, fontTitleSize()));
+    gbc.gridx = 0;
+    gbc.gridy = 0;
+    gbc.gridwidth = 2;
+    gbc.weightx = 1;
+    p.add(lblTitle, gbc);
+
+    gbc.gridwidth = 1;
+    gbc.weightx = 0;
+
+    // Cedula
+    gbc.gridy = 1;
+    gbc.gridx = 0;
+    p.add(new JLabel("Cédula:"), gbc);
+
+    gbc.gridx = 1;
+    gbc.weightx = 1;
+    var fldCc = new JTextField(15);
+    fldCc.setPreferredSize(new Dimension(260, 28));
+    p.add(fldCc, gbc);
+
+    // Email
+    gbc.gridy = 2;
+    gbc.gridx = 0;
+    gbc.weightx = 0;
+    p.add(new JLabel("Email:"), gbc);
+
+    gbc.gridx = 1;
+    gbc.weightx = 1;
+    var fldEmail = new JTextField(30);
+    fldEmail.setPreferredSize(new Dimension(360, 28));
+    p.add(fldEmail, gbc);
+
+    // Nombre completo
+    gbc.gridy = 3;
+    gbc.gridx = 0;
+    gbc.weightx = 0;
+    p.add(new JLabel("Nombre Completo:"), gbc);
+
+    gbc.gridx = 1;
+    gbc.weightx = 1;
+    var fldName = new JTextField(30);
+    fldName.setPreferredSize(new Dimension(360, 28));
+    p.add(fldName, gbc);
+
+    // Teléfono
+    gbc.gridy = 4;
+    gbc.gridx = 0;
+    gbc.weightx = 0;
+    p.add(new JLabel("Teléfono:"), gbc);
+
+    gbc.gridx = 1;
+    gbc.weightx = 1;
+    var fldPhone = new JTextField(15);
+    fldPhone.setPreferredSize(new Dimension(180, 28));
+    p.add(fldPhone, gbc);
+
+    // Botón registrar centrado
+    gbc.gridy = 5;
+    gbc.gridx = 0;
+    gbc.gridwidth = 2;
+    gbc.weightx = 1;
+    gbc.anchor = GridBagConstraints.CENTER;
     var btnRegister = new JButton("REGISTRAR");
+    btnRegister.setPreferredSize(new Dimension(140, 32));
+    p.add(btnRegister, gbc);
+
+    // Acción del botón: validación básica y petición al cliente
     btnRegister.addActionListener(l -> {
-      var cc = fldCc.getText();
-      var email = fldEmail.getText();
-      var name = fldName.getText();
-      var phone = fldPhone.getText();
+      var cc = fldCc.getText().trim();
+      var email = fldEmail.getText().trim();
+      var name = fldName.getText().trim();
+      var phone = fldPhone.getText().trim();
+
+      if (cc.isEmpty() || name.isEmpty() || email.isEmpty()) {
+        JOptionPane.showMessageDialog(p, "La cédula, el nombre y el email son obligatorios.", "Campos faltantes",
+            JOptionPane.WARNING_MESSAGE);
+        return;
+      }
+
+      // Validación simple de email (no perfecta pero útil)
+      String emailRegex = "^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$";
+      if (!email.matches(emailRegex)) {
+        JOptionPane.showMessageDialog(p, "Ingrese un correo electrónico válido.",
+            "Email inválido", JOptionPane.WARNING_MESSAGE);
+        return;
+      }
+
+      if (!phone.isEmpty() && !phone.matches("^\\+?\\d{10}$")) {
+        JOptionPane.showMessageDialog(p, "Ingrese un número de teléfono válido (10 dígitos).",
+            "Teléfono inválido", JOptionPane.WARNING_MESSAGE);
+        return;
+      }
+
       var customer = new CustomerToCreate();
       customer.cc = cc;
       customer.email = email;
       customer.name = name;
-      customer.phone = phone;
+      if (!phone.isEmpty())
+        customer.phone = phone;
+      else
+        customer.phone = null;
+
       try {
         var result = this.client.createCustomer(customer);
-        var msg = "Cliente Creado con Cedula " + customer.cc;
+        var msg = "Cliente creado con cédula " + customer.cc;
         JOptionPane.showMessageDialog(null, msg, "Cliente Registrado", JOptionPane.INFORMATION_MESSAGE);
+
+        // Limpiar campos
+        fldCc.setText("");
+        fldEmail.setText("");
+        fldName.setText("");
+        fldPhone.setText("");
+
+        // refrescar la vista si quieres mantener el formulario limpio
         setView(panelCustomerRegister());
       } catch (Exception e) {
         System.out.println(e);
-        JOptionPane.showMessageDialog(p, "Error Registrando el cliente", "Error Registrando Cliente",
+        JOptionPane.showMessageDialog(p, "Error registrando el cliente", "Error Registrando Cliente",
             JOptionPane.ERROR_MESSAGE);
       }
     });
 
-    p.add(lblTitle);
-    p.add(pCc);
-    p.add(pEmail);
-    p.add(pName);
-    p.add(pPhone);
-    p.add(btnRegister);
     return p;
   }
 
@@ -946,63 +1193,116 @@ public class Dashboard extends JFrame {
 
   <T> JPanel panelTableInformation(PaginationResult<T> pagination, int page, int per_page,
       BiFunction<Integer, Integer, JPanel> getPanel) {
-    var p = new JPanel();
+    var p = new JPanel(new BorderLayout());
+    p.setBorder(new EmptyBorder(15, 15, 15, 15));
+    p.setOpaque(false);
 
-    p.setLayout(new BorderLayout());
-    p.setBorder(new EmptyBorder(15, 15, 15, 15)); // margen general elegante
-
-    // --- Panel central con datos ---
-    var infoPanel = new JPanel();
-    infoPanel.setLayout(new BoxLayout(infoPanel, BoxLayout.Y_AXIS));
+    // --- Panel central con datos (alineados y estilizados) ---
+    var infoPanel = new JPanel(new GridBagLayout());
     infoPanel.setBorder(new EmptyBorder(10, 10, 10, 10));
-    infoPanel.setAlignmentX(Component.CENTER_ALIGNMENT);
+    infoPanel.setOpaque(true);
+    infoPanel.setBackground(new Color(245, 245, 245)); // fondo sutil para separar visualmente
 
-    var totalSales = new JLabel("ELEMENTOS TOTALES: " + pagination.total_items);
-    var pageNumber = new JLabel("NUMERO DE PAGINA: " + pagination.current_page);
-    var visibleSales = new JLabel("ELEMENTOS VISIBLES: " + pagination.items_count);
+    GridBagConstraints gbc = new GridBagConstraints();
+    gbc.insets = new Insets(6, 8, 6, 8);
+    gbc.fill = GridBagConstraints.HORIZONTAL;
 
-    // Espaciado más uniforme
-    totalSales.setBorder(new EmptyBorder(5, 0, 5, 0));
-    pageNumber.setBorder(new EmptyBorder(5, 0, 5, 0));
-    visibleSales.setBorder(new EmptyBorder(5, 0, 5, 0));
+    Font labelFont = new Font(font(), Font.BOLD, Math.max(fontSize(), 11));
+    Font valueFont = new Font(font(), Font.PLAIN, Math.max(fontSize(), 11));
 
-    infoPanel.add(totalSales);
-    infoPanel.add(pageNumber);
-    infoPanel.add(visibleSales);
+    // fila 0 - ELEMENTOS TOTALES
+    gbc.gridx = 0;
+    gbc.gridy = 0;
+    gbc.weightx = 0;
+    gbc.anchor = GridBagConstraints.WEST;
+    var lblTotalTitle = new JLabel("ELEMENTOS TOTALES:");
+    lblTotalTitle.setFont(labelFont);
+    infoPanel.add(lblTotalTitle, gbc);
 
-    // --- Panel inferior para botones ---
+    gbc.gridx = 1;
+    gbc.weightx = 1;
+    gbc.anchor = GridBagConstraints.WEST;
+    var lblTotalValue = new JLabel(String.valueOf(pagination.total_items));
+    lblTotalValue.setFont(valueFont);
+    infoPanel.add(lblTotalValue, gbc);
+
+    // fila 1 - NUMERO DE PAGINA
+    gbc.gridx = 0;
+    gbc.gridy = 1;
+    gbc.weightx = 0;
+    gbc.anchor = GridBagConstraints.WEST;
+    var lblPageTitle = new JLabel("NÚMERO DE PÁGINA:");
+    lblPageTitle.setFont(labelFont);
+    infoPanel.add(lblPageTitle, gbc);
+
+    gbc.gridx = 1;
+    gbc.weightx = 1;
+    gbc.anchor = GridBagConstraints.WEST;
+    var lblPageValue = new JLabel(String.valueOf(pagination.current_page));
+    lblPageValue.setFont(valueFont);
+    infoPanel.add(lblPageValue, gbc);
+
+    // fila 2 - ELEMENTOS VISIBLES
+    gbc.gridx = 0;
+    gbc.gridy = 2;
+    gbc.weightx = 0;
+    gbc.anchor = GridBagConstraints.WEST;
+    var lblVisibleTitle = new JLabel("ELEMENTOS VISIBLES:");
+    lblVisibleTitle.setFont(labelFont);
+    infoPanel.add(lblVisibleTitle, gbc);
+
+    gbc.gridx = 1;
+    gbc.weightx = 1;
+    gbc.anchor = GridBagConstraints.WEST;
+    var lblVisibleValue = new JLabel(String.valueOf(pagination.items_count));
+    lblVisibleValue.setFont(valueFont);
+    infoPanel.add(lblVisibleValue, gbc);
+
+    // --- Separador y área de navegación ---
+    var separator = new JSeparator();
+    separator.setForeground(Color.LIGHT_GRAY);
+
+    // Botones de navegación
     var navigationPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 20, 10));
+    navigationPanel.setOpaque(false);
 
     var btnPrevious = new JButton("⟵ ANTERIOR");
     var btnReload = new JButton("Recargar");
     var btnNext = new JButton("SIGUIENTE ⟶");
 
-    // Tamaño igual para ambos botones
-    Dimension btnSize = new Dimension(150, 35);
+    Dimension btnSize = new Dimension(160, 36);
     btnPrevious.setPreferredSize(btnSize);
-    btnNext.setPreferredSize(btnSize);
     btnReload.setPreferredSize(btnSize);
-    btnReload.addActionListener(l -> {
-      setView(getPanel.apply(page, per_page));
-    });
+    btnNext.setPreferredSize(btnSize);
+
+    // Habilitar / deshabilitar según estado de paginación
+    btnPrevious.setEnabled(page > 1);
+    boolean hasMore = pagination.total_items > (pagination.items_count * pagination.current_page);
+    btnNext.setEnabled(hasMore);
+
+    // Listeners
+    btnReload.addActionListener(l -> setView(getPanel.apply(page, per_page)));
+    if (page > 1) {
+      btnPrevious.addActionListener(l -> setView(getPanel.apply(page - 1, per_page)));
+    }
+    if (hasMore) {
+      btnNext.addActionListener(l -> setView(getPanel.apply(page + 1, per_page)));
+    }
 
     navigationPanel.add(btnPrevious);
     navigationPanel.add(btnReload);
     navigationPanel.add(btnNext);
 
-    // --- Agregar todo al panel principal ---
+    // --- Ensamblado final ---
+    var bottomBox = new JPanel();
+    bottomBox.setLayout(new BorderLayout());
+    bottomBox.setOpaque(false);
+    bottomBox.add(separator, BorderLayout.NORTH);
+    bottomBox.add(navigationPanel, BorderLayout.CENTER);
+
     p.add(infoPanel, BorderLayout.CENTER);
-    p.add(navigationPanel, BorderLayout.SOUTH);
-    if (page > 1) {
-      btnPrevious.addActionListener(l -> {
-        setView(getPanel.apply(page - 1, per_page));
-      });
-    }
-    if (pagination.total_items > (pagination.items_count * pagination.current_page)) {
-      btnNext.addActionListener(l -> {
-        setView(getPanel.apply(page + 1, per_page));
-      });
-    }
+    p.add(bottomBox, BorderLayout.SOUTH);
+
     return p;
   }
 
@@ -1050,8 +1350,8 @@ public class Dashboard extends JFrame {
 
       JScrollPane scroll = new JScrollPane(table);
       table.setFillsViewportHeight(true);
-      scroll.setPreferredSize(new Dimension(900, 300));
-      scroll.setMaximumSize(new Dimension(Integer.MAX_VALUE, 400));
+      scroll.setPreferredSize(new Dimension(900, 600));
+      scroll.setMaximumSize(new Dimension(Integer.MAX_VALUE, 600));
       panel.add(scroll);
       panel.add(pnlInformation);
     } catch (Exception e) {

@@ -220,6 +220,15 @@ public class GestorVentasClient {
         });
   }
 
+  public Customer getCustomerByCC(String cc) throws Exception {
+    return this.request(
+        "/customers/?cc=" + cc,
+        "GET",
+        Optional.empty(),
+        new TypeReference<Customer>() {
+        });
+  }
+
   // PRODUCTS
   public ProductCreated createProduct(ProductToCreate toCreate) throws Exception {
     toCreate.flags = toCreate.flags == null ? List.of() : toCreate.flags;
@@ -248,6 +257,15 @@ public class GestorVentasClient {
         });
   }
 
+  public Product getProductBySKU(String sku) throws Exception {
+    return this.request(
+        "/products/?sku=" + sku,
+        "GET",
+        Optional.empty(),
+        new TypeReference<Product>() {
+        });
+  }
+
   // SALES
   public SaleCreated createSale(SaleToCreate toCreate) throws Exception {
     return this.request(
@@ -264,6 +282,15 @@ public class GestorVentasClient {
         "GET",
         Optional.empty(),
         new TypeReference<PaginationResult<Sale>>() {
+        });
+  }
+
+  public Sale getSaleById(int id) throws Exception {
+    return this.request(
+        "/sales/" + id,
+        "GET",
+        Optional.empty(),
+        new TypeReference<Sale>() {
         });
   }
 
