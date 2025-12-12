@@ -208,16 +208,18 @@ public class Dashboard extends JFrame {
         btnSalesList,
         btnReports);
 
-    JPanel panelIconUniversidadNavidad = new BackgroundPanel("/images/uni_navidad.png");
-    panelIconUniversidadNavidad.setOpaque(false);
-    panelIconUniversidadNavidad.setBorder(new EmptyBorder(20, 0, 0, 20));
-    panelIconUniversidadNavidad.setPreferredSize(new Dimension(150, 40));
+    ImageIcon original = new ImageIcon(getClass().getResource("/images/uni_navidad.png"));
+    Image scaled = original.getImage().getScaledInstance(120, 220, Image.SCALE_SMOOTH);
+    JLabel iconLabel = new JLabel(new ImageIcon(scaled));
+    iconLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
+    iconLabel.setBorder(new EmptyBorder(10, 10, 20, 10));
 
     btnsSidebar.forEach(b -> {
       sidebar.add(b);
       b.setEnabled(false);
     });
-    sidebar.add(panelIconUniversidadNavidad);
+    sidebar.add(Box.createVerticalGlue());
+    sidebar.add(iconLabel);
 
     // ---- CONTENT PANEL ---
     JPanel root = new JPanel(new BorderLayout());
@@ -232,7 +234,7 @@ public class Dashboard extends JFrame {
     terramodaTitle.setHorizontalAlignment(SwingConstants.LEFT);
     terramodaTitle.setBorder(new EmptyBorder(0, 20, 0, 0));
 
-    JPanel panelIconUniversidadPanel = new BackgroundPanel("/images/uni_image.png");
+    JPanel panelIconUniversidadPanel = new BackgroundPanel("/images/uni_no_opacity.png");
     panelIconUniversidadPanel.setAlignmentX(SwingConstants.RIGHT);
     panelIconUniversidadPanel.setBorder(new EmptyBorder(20, 0, 0, 20));
     panelIconUniversidadPanel.setPreferredSize(new Dimension(150, 40));
@@ -305,7 +307,6 @@ public class Dashboard extends JFrame {
       }
     });
 
-
     JPanel contentFather = new BackgroundPanel(
         "/images/uni_image.png");
     JPanel content = new JPanel();
@@ -358,7 +359,7 @@ public class Dashboard extends JFrame {
     btnCustomersList.addActionListener(e -> setView(panelCustomers(1, 10)));
     btnProductsRegister.addActionListener(e -> setView(panelProductRegister()));
     btnProductsList.addActionListener(e -> setView(panelProducts(1, 10)));
-    btnReports.addActionListener(e -> setView(new PanelReportes()));
+    //btnReports.addActionListener(e -> setView(new PanelReportes()));
 
     setVisible(true);
   }
@@ -920,7 +921,7 @@ public class Dashboard extends JFrame {
       table.getColumnModel().getColumn(1).setPreferredWidth(150); // Cedula
       table.getColumnModel().getColumn(2).setPreferredWidth(100); // Total
       table.getColumnModel().getColumn(3).setPreferredWidth(300); // Fecha
-      table.getColumnModel().getColumn(4).setPreferredWidth(100);
+      table.getColumnModel().getColumn(4).setPreferredWidth(10);
       for (var sale : sales.items) {
         model.addRow(new Object[] { sale.id, sale.customer.cc, sale.total_amount, sale.generated_at, null });
       }
@@ -1142,29 +1143,5 @@ class SidebarComponents {
       }
     });
     return btn;
-  }
-}
-
-// ------------ Ejemplo de pantallas ------------------
-class PanelRegistrarVentas extends JPanel {
-
-  public PanelRegistrarVentas() {
-    add(new JLabel("Pantalla Clientes"));
-  }
-}
-
-class PanelVentas extends JPanel {
-
-  public PanelVentas() {
-    setBackground(Color.ORANGE);
-    add(new JLabel("Pantalla Ventas"));
-  }
-}
-
-class PanelReportes extends JPanel {
-
-  public PanelReportes() {
-    setBackground(Color.CYAN);
-    add(new JLabel("Pantalla Reportes"));
   }
 }
