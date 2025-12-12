@@ -586,7 +586,16 @@ public class Dashboard extends JFrame {
     try {
       var result = this.client.getPaginatedProducts(page, per_page);
       var pnlInformation = panelTableInformation(result, page, per_page,
-          (new_page, new_per_page) -> panelProducts(new_page, new_per_page));
+          (new_page, new_per_page) -> panelProducts(new_page, new_per_page), "SKU", (s) -> {
+            try {
+              var r = client.getProductBySKU(s.toString());
+              return r;
+            } catch (Exception e) {
+              System.out.println(e);
+              return null;
+            }
+          },
+          (s) -> panelProductView(s));
       String[] columns = new String[] { "SKU", "Nombre", "Descripcion", "Precio", "Stock", "Ver/Editar" };
       var model = new DefaultTableModel(columns, 0) {
         @Override
@@ -959,7 +968,15 @@ public class Dashboard extends JFrame {
     try {
       var result = this.client.getPaginatedCustomers(page, per_page);
       var pnlInformation = panelTableInformation(result, page, per_page,
-          (new_page, new_per_page) -> panelCustomers(new_page, new_per_page));
+          (new_page, new_per_page) -> panelCustomers(new_page, new_per_page), "Cedula", (s) -> {
+            try {
+              var r = client.getCustomerByCC(s);
+              return r;
+            } catch (Exception e) {
+              System.out.println(e);
+              return null;
+            }
+          }, (s) -> panelCustomerView(s));
       String[] columns = new String[] { "Cedula", "Nombre", "Email", "Telefono", "Ver/Editar" };
       var model = new DefaultTableModel(columns, 0) {
         @Override
@@ -1191,17 +1208,56 @@ public class Dashboard extends JFrame {
     return panel;
   }
 
-  <T> JPanel panelTableInformation(PaginationResult<T> pagination, int page, int per_page,
-      BiFunction<Integer, Integer, JPanel> getPanel) {
+  <T> JPanel panelTableInformation(
+      PaginationResult<T> pagination,
+      int page,
+      int per_page,
+      BiFunction<Integer, Integer, JPanel> getPanel,
+      String labelSearch,
+      Function<String, T> searcher,
+      Function<T, JPanel> view) {
+
     var p = new JPanel(new BorderLayout());
     p.setBorder(new EmptyBorder(15, 15, 15, 15));
     p.setOpaque(false);
 
-    // --- Panel central con datos (alineados y estilizados) ---
+    // ---- BARRA DE BÚSQUEDA ----
+    JPanel searchBar = new JPanel(new GridBagLayout());
+    searchBar.setOpaque(false);
+    GridBagConstraints sgbc = new GridBagConstraints();
+    sgbc.insets = new Insets(4, 6, 4, 6);
+    sgbc.fill = GridBagConstraints.HORIZONTAL;
+
+    sgbc.gridx = 0;
+    sgbc.weightx = 0;
+    var lblSearch = new JLabel(labelSearch + ":");
+    lblSearch.setFont(new Font(font(), Font.BOLD, Math.max(fontSize(), 11)));
+    searchBar.add(lblSearch, sgbc);
+
+    sgbc.gridx = 1;
+    sgbc.weightx = 1;
+    var txtSearch = new JTextField();
+    txtSearch.setPreferredSize(new Dimension(220, 28));
+    searchBar.add(txtSearch, sgbc);
+
+    sgbc.gridx = 2;
+    sgbc.weightx = 0;
+    var btnSearch = new JButton("Buscar");
+    btnSearch.setPreferredSize(new Dimension(100, 28));
+    searchBar.add(btnSearch, sgbc);
+
+    sgbc.gridx = 3;
+    var btnClearSearch = new JButton("Limpiar");
+    btnClearSearch.setPreferredSize(new Dimension(80, 28));
+    searchBar.add(btnClearSearch, sgbc);
+
+    p.add(searchBar, BorderLayout.NORTH);
+
+    // ---- PANEL CENTRAL CON DATOS (tarjeta de métricas) ----
     var infoPanel = new JPanel(new GridBagLayout());
     infoPanel.setBorder(new EmptyBorder(10, 10, 10, 10));
     infoPanel.setOpaque(true);
-    infoPanel.setBackground(new Color(245, 245, 245)); // fondo sutil para separar visualmente
+    infoPanel.setBackground(new Color(245, 245, 245));
 
     GridBagConstraints gbc = new GridBagConstraints();
     gbc.insets = new Insets(6, 8, 6, 8);
@@ -1258,11 +1314,12 @@ public class Dashboard extends JFrame {
     lblVisibleValue.setFont(valueFont);
     infoPanel.add(lblVisibleValue, gbc);
 
-    // --- Separador y área de navegación ---
+    p.add(infoPanel, BorderLayout.CENTER);
+
+    // ---- Separador y navegación ----
     var separator = new JSeparator();
     separator.setForeground(Color.LIGHT_GRAY);
 
-    // Botones de navegación
     var navigationPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 20, 10));
     navigationPanel.setOpaque(false);
 
@@ -1275,12 +1332,10 @@ public class Dashboard extends JFrame {
     btnReload.setPreferredSize(btnSize);
     btnNext.setPreferredSize(btnSize);
 
-    // Habilitar / deshabilitar según estado de paginación
     btnPrevious.setEnabled(page > 1);
     boolean hasMore = pagination.total_items > (pagination.items_count * pagination.current_page);
     btnNext.setEnabled(hasMore);
 
-    // Listeners
     btnReload.addActionListener(l -> setView(getPanel.apply(page, per_page)));
     if (page > 1) {
       btnPrevious.addActionListener(l -> setView(getPanel.apply(page - 1, per_page)));
@@ -1293,15 +1348,66 @@ public class Dashboard extends JFrame {
     navigationPanel.add(btnReload);
     navigationPanel.add(btnNext);
 
-    // --- Ensamblado final ---
-    var bottomBox = new JPanel();
-    bottomBox.setLayout(new BorderLayout());
+    var bottomBox = new JPanel(new BorderLayout());
     bottomBox.setOpaque(false);
     bottomBox.add(separator, BorderLayout.NORTH);
     bottomBox.add(navigationPanel, BorderLayout.CENTER);
 
-    p.add(infoPanel, BorderLayout.CENTER);
     p.add(bottomBox, BorderLayout.SOUTH);
+
+    // ---- Lógica de búsqueda ----
+    final JDialog[] searchDialogHolder = new JDialog[1];
+
+    btnSearch.addActionListener(l -> {
+      String query = txtSearch.getText().trim();
+      if (query.isEmpty()) {
+        JOptionPane.showMessageDialog(p, "Ingrese un valor para buscar.", "Buscar", JOptionPane.INFORMATION_MESSAGE);
+        return;
+      }
+      try {
+        if (searcher == null) {
+          JOptionPane.showMessageDialog(p, "No hay función de búsqueda configurada.", "Buscar",
+              JOptionPane.WARNING_MESSAGE);
+          return;
+        }
+        T result = searcher.apply(query);
+        if (result == null) {
+          JOptionPane.showMessageDialog(p, "No se encontraron resultados para: " + query, "Buscar",
+              JOptionPane.INFORMATION_MESSAGE);
+          return;
+        }
+        if (view == null) {
+          JOptionPane.showMessageDialog(p, "No hay función de vista configurada para el resultado.", "Buscar",
+              JOptionPane.WARNING_MESSAGE);
+          return;
+        }
+        JPanel resultPanel = view.apply(result);
+        if (resultPanel == null) {
+          JOptionPane.showMessageDialog(p, "La función de vista devolvió null para: " + query, "Buscar",
+              JOptionPane.INFORMATION_MESSAGE);
+          return;
+        }
+        // mostrar resultado en un diálogo modal
+        JDialog dialog = new JDialog((Frame) null, "Resultado: " + query, true);
+        dialog.setDefaultCloseOperation(WindowConstants.DISPOSE_ON_CLOSE);
+        dialog.getContentPane().add(resultPanel);
+        dialog.pack();
+        dialog.setLocationRelativeTo(null);
+        searchDialogHolder[0] = dialog;
+        dialog.setVisible(true);
+      } catch (Exception ex) {
+        ex.printStackTrace();
+        JOptionPane.showMessageDialog(p, "Error al ejecutar la búsqueda: " + ex.getMessage(), "Error",
+            JOptionPane.ERROR_MESSAGE);
+      }
+    });
+
+    btnClearSearch.addActionListener(l -> {
+      txtSearch.setText("");
+      if (searchDialogHolder[0] != null && searchDialogHolder[0].isShowing()) {
+        searchDialogHolder[0].dispose();
+      }
+    });
 
     return p;
   }
@@ -1312,7 +1418,16 @@ public class Dashboard extends JFrame {
     try {
       var sales = client.getPaginatedSales(page, per_page);
       var pnlInformation = panelTableInformation(sales, page, per_page,
-          (new_page, new_per_page) -> panelSales(new_page, new_per_page));
+          (new_page, new_per_page) -> panelSales(new_page, new_per_page), "Id", (s) -> {
+            try {
+              int id = Integer.parseInt(s);
+              return client.getSaleById(id);
+            } catch (Exception e) {
+              JOptionPane.showMessageDialog(null, "El ID debe ser un número válido.", "ID inválido",
+                  JOptionPane.WARNING_MESSAGE);
+              return null;
+            }
+          }, (s) -> panelSaleView(s));
 
       String[] columns = { "ID", "Cedula", "Total", "Fecha de Venta", "Ver" };
       var model = new DefaultTableModel(columns, 0) {
