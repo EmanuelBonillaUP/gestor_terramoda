@@ -169,7 +169,7 @@ public class GestorVentasClient {
         .uri(URI.create(this.uri + path));
 
     if (!path.equals(authPath())) {
-      requestBuilder.header("API_KEY", key);
+      requestBuilder.header("x-api-key", key);
     }
     // Serializar data si está presente
     if (data.isPresent()) {

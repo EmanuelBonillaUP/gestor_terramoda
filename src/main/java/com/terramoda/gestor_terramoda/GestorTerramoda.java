@@ -14,7 +14,7 @@ public class GestorTerramoda {
 
     public static void main(String[] args) {
         SwingUtilities.invokeLater(() -> {
-            Dashboard dashboard = new Dashboard("http://localhost:8000");
+            Dashboard dashboard = new Dashboard("https://terramoda.flurts.tech");
             dashboard.setVisible(true);
             
         });
