@@ -8,6 +8,8 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.List;
 
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -162,7 +164,7 @@ public class GestorVentasClient {
     return "/login";
   }
 
-  public <I> HttpResponse<String> requestCommon(String path, String method, Optional<I> data) throws Exception {
+  public <I> HttpRequest requestBuilder(String path, String method, Optional<I> data) throws Exception {
     HttpRequest.Builder requestBuilder = HttpRequest.newBuilder()
         .uri(URI.create(this.uri + path));
 
@@ -178,8 +180,12 @@ public class GestorVentasClient {
       requestBuilder.method(method, HttpRequest.BodyPublishers.noBody());
     }
 
-    HttpRequest request = requestBuilder.build();
-    HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
+    return requestBuilder.build();
+  }
+
+  public <I> HttpResponse<String> requestCommon(String path, String method, Optional<I> data) throws Exception {
+    HttpResponse<String> response = client.send(requestBuilder(path, method, data),
+        HttpResponse.BodyHandlers.ofString());
     return response;
   }
 
@@ -301,5 +307,11 @@ public class GestorVentasClient {
         Optional.of(data),
         new TypeReference<LoginResponse>() {
         }).key;
+  }
+
+  public void genearteReportCsv(String path) throws Exception {
+    var request = this.requestBuilder("/reports/csv", "GET", Optional.empty());
+    var response = client.send(request, HttpResponse.BodyHandlers.ofByteArray());
+    Files.write(Path.of(path), response.body());
   }
 }

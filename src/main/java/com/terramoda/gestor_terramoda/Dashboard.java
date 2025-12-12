@@ -8,9 +8,11 @@ import javax.swing.*;
 import java.awt.*;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
+import java.io.File;
 import java.util.List;
 import java.util.ArrayList;
 import java.util.function.BiFunction;
+import java.util.function.Consumer;
 import java.util.function.Function;
 import javax.swing.border.EmptyBorder;
 import javax.swing.table.DefaultTableModel;
@@ -212,12 +214,30 @@ public class Dashboard extends JFrame {
         btnSalesList,
         btnReports);
 
+    // --- aplicar estilo consistente a los botones del sidebar ---
+    Color bgNormal = Dashboard.colorSidebar(); // fondo del sidebar
+    Color fgNormal = colorFgSidebar(); // texto normal
+    Color bgSelected = new Color(0x0F5A5F); // fondo seleccionado (ajustable)
+    Color fgSelected = colorHoverFgSidebar(); // texto seleccionado
+
+    btnsSidebar.forEach(b -> {
+      b.setFocusPainted(false);
+      b.setBorderPainted(false);
+      b.setContentAreaFilled(true); // permitir pintar background
+      b.setOpaque(true); // necesario en algunos L&F
+      b.setBackground(bgNormal);
+      b.setForeground(fgNormal);
+      b.setHorizontalAlignment(SwingConstants.LEFT);
+      b.setBorder(new EmptyBorder(12, 20, 12, 20));
+    });
+
     ImageIcon original = new ImageIcon(getClass().getResource("/images/uni_navidad.png"));
     Image scaled = original.getImage().getScaledInstance(120, 220, Image.SCALE_SMOOTH);
     JLabel iconLabel = new JLabel(new ImageIcon(scaled));
     iconLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
     iconLabel.setBorder(new EmptyBorder(10, 10, 20, 10));
 
+    // añadir botones al sidebar (inicialmente deshabilitados hasta login)
     btnsSidebar.forEach(b -> {
       sidebar.add(b);
       b.setEnabled(false);
@@ -266,7 +286,7 @@ public class Dashboard extends JFrame {
     // Campo Usuario
     gbc.gridx = 1;
     gbc.weightx = 1;
-    JTextField userTextField = new JTextField("admin_terramoda_123", 20);
+    JTextField userTextField = new JTextField(20);
     userTextField.setPreferredSize(new Dimension(220, 28));
     userTextField.setMaximumSize(new Dimension(Integer.MAX_VALUE, 28));
     panelAuth.add(userTextField, gbc);
@@ -282,7 +302,7 @@ public class Dashboard extends JFrame {
     // Campo Contraseña (JPasswordField)
     gbc.gridx = 1;
     gbc.weightx = 1;
-    JPasswordField passTextField = new JPasswordField("pass_super_secret_xd", 20);
+    JPasswordField passTextField = new JPasswordField(20);
     passTextField.setPreferredSize(new Dimension(220, 28));
     passTextField.setMaximumSize(new Dimension(Integer.MAX_VALUE, 28));
     panelAuth.add(passTextField, gbc);
@@ -296,23 +316,7 @@ public class Dashboard extends JFrame {
     JButton localAcceder = new JButton("ACCEDER");
     panelAuth.add(localAcceder, gbc);
 
-    // si prefieres usar el btnAcceder del header, elimina el localAcceder y usa el
-    // existente
-    localAcceder.addActionListener(s -> {
-      var data = new Login();
-      data.user = userTextField.getText();
-      data.pass = new String(passTextField.getPassword());
-      try {
-        client.login(data);
-        setView(panelSaleRegister());
-        btnsSidebar.forEach(b -> b.setEnabled(true));
-      } catch (Exception e) {
-        System.out.println(e);
-      }
-    });
-
-    JPanel contentFather = new BackgroundPanel(
-        "/images/uni_image.png");
+    JPanel contentFather = new BackgroundPanel("/images/uni_image.png");
     JPanel content = new JPanel();
     content.setOpaque(false);
     content.setLayout(new BorderLayout());
@@ -356,14 +360,79 @@ public class Dashboard extends JFrame {
     add(sidebar, BorderLayout.WEST);
     add(root, BorderLayout.CENTER);
 
+    // ---- selección de botones: uso AtomicReference para eficiencia ----
+    final java.util.concurrent.atomic.AtomicReference<JButton> selectedBtnRef = new java.util.concurrent.atomic.AtomicReference<>(
+        null);
+
+    java.util.function.Consumer<JButton> selectButton = btn -> {
+      JButton prev = selectedBtnRef.getAndSet(btn);
+      if (prev != null) {
+        prev.setBackground(bgNormal);
+        prev.setForeground(fgNormal);
+        prev.repaint();
+      }
+      if (btn.isEnabled()) {
+        btn.setBackground(bgSelected);
+        btn.setForeground(fgSelected);
+      } else {
+        btn.setBackground(bgNormal.darker());
+        btn.setForeground(fgNormal.brighter());
+      }
+      btn.repaint();
+    };
+
     // Eventos
-    btnSalesRegister.addActionListener(e -> setView(panelSaleRegister()));
-    btnSalesList.addActionListener(e -> setView(panelSales(1, perPage())));
-    btnCustomersRegister.addActionListener(e -> setView(panelCustomerRegister()));
-    btnCustomersList.addActionListener(e -> setView(panelCustomers(1, perPage())));
-    btnProductsRegister.addActionListener(e -> setView(panelProductRegister()));
-    btnProductsList.addActionListener(e -> setView(panelProducts(1, perPage())));
-    // btnReports.addActionListener(e -> setView(new PanelReportes()));
+    btnSalesRegister.addActionListener(e -> {
+      System.out.println("Clicked: SalesRegister enabled=" + btnSalesRegister.isEnabled());
+      selectButton.accept(btnSalesRegister);
+      setView(panelSaleRegister());
+    });
+    btnSalesList.addActionListener(e -> {
+      System.out.println("Clicked: SalesList enabled=" + btnSalesList.isEnabled());
+      selectButton.accept(btnSalesList);
+      setView(panelSales(1, perPage()));
+    });
+    btnCustomersRegister.addActionListener(e -> {
+      System.out.println("Clicked: CustomersRegister enabled=" + btnCustomersRegister.isEnabled());
+      selectButton.accept(btnCustomersRegister);
+      setView(panelCustomerRegister());
+    });
+    btnCustomersList.addActionListener(e -> {
+      System.out.println("Clicked: CustomersList enabled=" + btnCustomersList.isEnabled());
+      selectButton.accept(btnCustomersList);
+      setView(panelCustomers(1, perPage()));
+    });
+    btnProductsRegister.addActionListener(e -> {
+      System.out.println("Clicked: ProductsRegister enabled=" + btnProductsRegister.isEnabled());
+      selectButton.accept(btnProductsRegister);
+      setView(panelProductRegister());
+    });
+    btnProductsList.addActionListener(e -> {
+      System.out.println("Clicked: ProductsList enabled=" + btnProductsList.isEnabled());
+      selectButton.accept(btnProductsList);
+      setView(panelProducts(1, perPage()));
+    });
+    btnReports.addActionListener(e -> {
+      System.out.println("Clicked: Reports enabled=" + btnReports.isEnabled());
+      selectButton.accept(btnReports);
+      setView(panelReports());
+    });
+
+    // Acción del botón ACCEDER (login local)
+    localAcceder.addActionListener(s -> {
+      var data = new Login();
+      data.user = userTextField.getText();
+      data.pass = new String(passTextField.getPassword());
+      try {
+        client.login(data);
+        // habilitar botones y seleccionar por defecto uno (ej: Ver Clientes)
+        btnsSidebar.forEach(b -> b.setEnabled(true));
+        selectButton.accept(btnCustomersRegister); // seleccion por defecto
+        setView(panelSaleRegister());
+      } catch (Exception e) {
+        System.out.println(e);
+      }
+    });
 
     setVisible(true);
   }
@@ -1676,6 +1745,135 @@ public class Dashboard extends JFrame {
     });
 
     return panel;
+  }
+
+  public JPanel panelReports() {
+    JPanel p = new JPanel(new GridBagLayout());
+    p.setOpaque(false);
+    p.setBorder(new EmptyBorder(20, 40, 20, 40));
+
+    GridBagConstraints gbc = new GridBagConstraints();
+    gbc.insets = new Insets(8, 8, 8, 8);
+    gbc.fill = GridBagConstraints.HORIZONTAL;
+    gbc.anchor = GridBagConstraints.WEST;
+
+    // Título
+    JLabel title = new JLabel("GENERAR REPORTES", SwingConstants.CENTER);
+    title.setFont(new Font(font(), Font.BOLD, fontTitleSize()));
+    gbc.gridx = 0;
+    gbc.gridy = 0;
+    gbc.gridwidth = 3;
+    gbc.weightx = 1;
+    p.add(title, gbc);
+
+    // Campo para ruta + botón explorar
+    gbc.gridwidth = 1;
+    gbc.weightx = 0;
+    gbc.gridy = 1;
+    gbc.gridx = 0;
+    p.add(new JLabel("Ruta del CSV:"), gbc);
+
+    gbc.gridx = 1;
+    gbc.weightx = 1;
+    JTextField txtPath = new JTextField(System.getProperty("user.home") + File.separator + "reports.csv");
+    txtPath.setPreferredSize(new Dimension(360, 28));
+    p.add(txtPath, gbc);
+
+    gbc.gridx = 2;
+    gbc.weightx = 0;
+    JButton btnBrowse = new JButton("Explorar...");
+    p.add(btnBrowse, gbc);
+
+    // Opciones: abrir archivo al terminar
+    gbc.gridy = 2;
+    gbc.gridx = 1;
+    gbc.gridwidth = 2;
+    gbc.anchor = GridBagConstraints.WEST;
+    JCheckBox chkOpenAfter = new JCheckBox("Abrir archivo al generar");
+    chkOpenAfter.setOpaque(false);
+    p.add(chkOpenAfter, gbc);
+
+    // Generar botón centrado
+    gbc.gridy = 3;
+    gbc.gridx = 0;
+    gbc.gridwidth = 3;
+    gbc.anchor = GridBagConstraints.CENTER;
+    JButton btnGenerateCsv = new JButton("GENERAR REPORTE CSV DE VENTAS");
+    btnGenerateCsv.setPreferredSize(new Dimension(260, 36));
+    p.add(btnGenerateCsv, gbc);
+
+    // Acciones
+    btnBrowse.addActionListener(e -> {
+      JFileChooser chooser = new JFileChooser();
+      chooser.setDialogTitle("Guardar reporte como");
+      chooser.setSelectedFile(new File(txtPath.getText()));
+      chooser.setFileFilter(new javax.swing.filechooser.FileNameExtensionFilter("CSV files", "csv"));
+      int ret = chooser.showSaveDialog(p);
+      if (ret == JFileChooser.APPROVE_OPTION) {
+        File f = chooser.getSelectedFile();
+        // asegurar extension .csv
+        if (!f.getName().toLowerCase().endsWith(".csv")) {
+          f = new File(f.getParentFile(), f.getName() + ".csv");
+        }
+        txtPath.setText(f.getAbsolutePath());
+      }
+    });
+
+    btnGenerateCsv.addActionListener(e -> {
+      String targetPath = txtPath.getText().trim();
+      if (targetPath.isEmpty()) {
+        JOptionPane.showMessageDialog(p, "Seleccione o ingrese la ruta donde guardar el CSV.", "Ruta requerida",
+            JOptionPane.WARNING_MESSAGE);
+        return;
+      }
+      btnGenerateCsv.setEnabled(false);
+      btnBrowse.setEnabled(false);
+
+      // Ejecutar en background para no bloquear la UI
+      SwingWorker<Void, Void> worker = new SwingWorker<>() {
+        Exception error = null;
+
+        @Override
+        protected Void doInBackground() {
+          try {
+            // llamar al cliente (usa el método existente: genearteReportCsv)
+            client.genearteReportCsv(targetPath);
+          } catch (Exception ex) {
+            error = ex;
+          }
+          return null;
+        }
+
+        @Override
+        protected void done() {
+          btnGenerateCsv.setEnabled(true);
+          btnBrowse.setEnabled(true);
+
+          if (error != null) {
+            error.printStackTrace();
+            JOptionPane.showMessageDialog(p, "Error generando el reporte:\n" + error.getMessage(), "Error",
+                JOptionPane.ERROR_MESSAGE);
+            return;
+          }
+
+          JOptionPane.showMessageDialog(p, "Reporte generado exitosamente en:\n" + targetPath, "Reporte Generado",
+              JOptionPane.INFORMATION_MESSAGE);
+
+          if (chkOpenAfter.isSelected()) {
+            try {
+              Desktop desktop = Desktop.getDesktop();
+              desktop.open(new File(targetPath));
+            } catch (Exception ex) {
+              // No es crítico; solo informar si falla
+              System.out.println("No se pudo abrir el CSV automáticamente: " + ex);
+            }
+          }
+        }
+      };
+      worker.execute();
+    });
+
+    return p;
   }
 }
 
