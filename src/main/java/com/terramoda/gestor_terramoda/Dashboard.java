@@ -359,7 +359,7 @@ public class Dashboard extends JFrame {
     btnCustomersList.addActionListener(e -> setView(panelCustomers(1, 10)));
     btnProductsRegister.addActionListener(e -> setView(panelProductRegister()));
     btnProductsList.addActionListener(e -> setView(panelProducts(1, 10)));
-    //btnReports.addActionListener(e -> setView(new PanelReportes()));
+    // btnReports.addActionListener(e -> setView(new PanelReportes()));
 
     setVisible(true);
   }
@@ -958,129 +958,187 @@ public class Dashboard extends JFrame {
   }
 
   private JPanel panelSaleRegister() {
-    JPanel panel = new JPanel();
-    panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
+    JPanel panel = new JPanel(new BorderLayout());
     panel.setOpaque(false);
-    var title = new JLabel("REGISTRAR NUEVA VENTA");
+    panel.setBorder(new EmptyBorder(20, 40, 20, 40));
+
+    // TITULO
+    JLabel title = new JLabel("REGISTRAR NUEVA VENTA", SwingConstants.CENTER);
     title.setFont(new Font(font(), Font.BOLD, fontTitleSize()));
+    title.setBorder(new EmptyBorder(10, 0, 20, 0));
+    panel.add(title, BorderLayout.NORTH);
 
-    // CC
-    var panelCc = new JPanel();
-    var ccLabel = new JLabel("CEDULA");
-    var ccTextField = new JTextField(10);
-    panelCc.add(ccLabel);
-    panelCc.add(ccTextField);
+    // --- FORM (cedula + SKU + quantity + agregar)
+    JPanel form = new JPanel(new GridBagLayout());
+    form.setOpaque(false);
+    GridBagConstraints gbc = new GridBagConstraints();
+    gbc.insets = new Insets(8, 8, 8, 8);
+    gbc.fill = GridBagConstraints.HORIZONTAL;
 
-    // PRODUCT
-    var panelProduct = new JPanel();
-    var panelSku = new JPanel();
-    var skuLabel = new JLabel("SKU");
-    var skuTextField = new JTextField(20);
-    panelSku.add(skuLabel);
-    panelSku.add(skuTextField);
-    var panelQuantity = new JPanel();
-    var quantityLabel = new JLabel("QUANTITY");
-    var quantityTextField = new JTextField(5);
-    panelQuantity.add(quantityLabel);
-    panelQuantity.add(quantityTextField);
-    panelProduct.add(panelSku);
-    var btnAddProduct = new JButton("AGREGAR");
-    panelProduct.add(panelQuantity);
-    panelProduct.add(btnAddProduct);
-    List<Pair<String, Integer>> productsAdded = new ArrayList<Pair<String, Integer>>();
-    var panelProductsWithQuantity = new JPanel();
-    panelProductsWithQuantity.setLayout(new BoxLayout(panelProductsWithQuantity, BoxLayout.Y_AXIS));
-    List<JPanel> listPanelsProductsWithQuantity = new ArrayList<JPanel>();
-    var scroll = new JScrollPane(panelProductsWithQuantity);
-    var pnlScrollFirst = new JPanel();
-    Runnable redrawProductsPanel = () -> {
-      panelProductsWithQuantity.removeAll();
-      panelProductsWithQuantity.add(pnlScrollFirst);
-      for (JPanel jPanel : listPanelsProductsWithQuantity) {
-        panelProductsWithQuantity.add(jPanel);
+    // Cedula
+    gbc.gridx = 0;
+    gbc.gridy = 0;
+    gbc.weightx = 0;
+    form.add(new JLabel("CÉDULA"), gbc);
+
+    gbc.gridx = 1;
+    gbc.weightx = 1;
+    JTextField ccTextField = new JTextField(15);
+    ccTextField.setPreferredSize(new Dimension(160, 28));
+    form.add(ccTextField, gbc);
+
+    // SKU
+    gbc.gridx = 0;
+    gbc.gridy = 1;
+    gbc.weightx = 0;
+    form.add(new JLabel("SKU"), gbc);
+
+    gbc.gridx = 1;
+    gbc.weightx = 1;
+    JTextField skuTextField = new JTextField(20);
+    skuTextField.setPreferredSize(new Dimension(240, 28));
+    form.add(skuTextField, gbc);
+
+    // Quantity
+    gbc.gridx = 2;
+    gbc.gridy = 1;
+    gbc.weightx = 0;
+    form.add(new JLabel("CANTIDAD"), gbc);
+
+    gbc.gridx = 3;
+    gbc.weightx = 0;
+    JTextField quantityTextField = new JTextField(5);
+    quantityTextField.setPreferredSize(new Dimension(60, 28));
+    form.add(quantityTextField, gbc);
+
+    // Agregar button
+    gbc.gridx = 4;
+    gbc.weightx = 0;
+    JButton btnAddProduct = new JButton("AGREGAR");
+    form.add(btnAddProduct, gbc);
+
+    panel.add(form, BorderLayout.CENTER);
+
+    // --- TABLE de productos añadidos (más limpia y consistente)
+    String[] cols = new String[] { "SKU", "CANTIDAD" };
+    DefaultTableModel productsModel = new DefaultTableModel(cols, 0) {
+      @Override
+      public boolean isCellEditable(int row, int column) {
+        return false;
       }
-      panelProductsWithQuantity.revalidate();
-      panelProductsWithQuantity.repaint();
     };
-    btnAddProduct.addActionListener(e -> {
-      var skuText = skuTextField.getText();
-      var quantity = Integer.parseInt(quantityTextField.getText());
+    JTable productsTable = new JTable(productsModel);
+    productsTable.setFillsViewportHeight(true);
+    productsTable.setRowHeight(28);
+    productsTable.getColumnModel().getColumn(0).setPreferredWidth(300);
+    productsTable.getColumnModel().getColumn(1).setPreferredWidth(80);
 
-      // Evitar duplicado
-      for (Pair<String, Integer> pair : productsAdded) {
-        if (pair.a().equals(skuText)) {
-          return;
+    JScrollPane tableScroll = new JScrollPane(productsTable);
+    tableScroll.setPreferredSize(new Dimension(760, 220));
+    tableScroll.setBorder(BorderFactory.createTitledBorder("Productos añadidos"));
+    tableScroll.setMaximumSize(new Dimension(Integer.MAX_VALUE, 300));
+
+    // Panel inferior con botones: Remover seleccionado, Remover todo, Register
+    JPanel bottom = new JPanel(new BorderLayout());
+    bottom.setOpaque(false);
+    JPanel actions = new JPanel(new FlowLayout(FlowLayout.CENTER, 16, 8));
+    actions.setOpaque(false);
+
+    JButton btnRemoveSelected = new JButton("REMOVER SELECCIONADO");
+    JButton btnRemoveAll = new JButton("REMOVER TODO");
+    JButton btnRegister = new JButton("REGISTRAR VENTA");
+
+    actions.add(btnRemoveSelected);
+    actions.add(btnRemoveAll);
+
+    // Centrar el botón Register en la parte inferior derecha-ish
+    JPanel registerBox = new JPanel(new FlowLayout(FlowLayout.CENTER));
+    registerBox.setOpaque(false);
+    registerBox.add(btnRegister);
+
+    bottom.add(actions, BorderLayout.NORTH);
+    bottom.add(tableScroll, BorderLayout.CENTER);
+    bottom.add(registerBox, BorderLayout.SOUTH);
+
+    // Añadir todo al panel principal (centro->form + abajo->tabla y acciones)
+    JPanel centerStack = new JPanel();
+    centerStack.setOpaque(false);
+    centerStack.setLayout(new BoxLayout(centerStack, BoxLayout.Y_AXIS));
+    centerStack.add(form);
+    centerStack.add(Box.createRigidArea(new Dimension(0, 12)));
+    centerStack.add(tableScroll);
+    centerStack.add(Box.createRigidArea(new Dimension(0, 12)));
+    centerStack.add(actions);
+    centerStack.add(Box.createRigidArea(new Dimension(0, 8)));
+    centerStack.add(registerBox);
+
+    panel.add(centerStack, BorderLayout.CENTER);
+
+    // --- Lógica: agregar / remover / registrar
+    btnAddProduct.addActionListener(e -> {
+      var sku = skuTextField.getText().trim();
+      if (sku.isEmpty()) {
+        JOptionPane.showMessageDialog(panel, "Ingrese un SKU válido", "Error", JOptionPane.ERROR_MESSAGE);
+        return;
+      }
+      int qty;
+      try {
+        qty = Integer.parseInt(quantityTextField.getText().trim());
+        if (qty <= 0)
+          throw new NumberFormatException();
+      } catch (NumberFormatException ex) {
+        JOptionPane.showMessageDialog(panel, "Ingrese una cantidad válida (entero > 0)", "Error",
+            JOptionPane.ERROR_MESSAGE);
+        return;
+      }
+      // evitar duplicado: sumar si ya existe (o puedes bloquear la duplicación)
+      boolean found = false;
+      for (int r = 0; r < productsModel.getRowCount(); r++) {
+        if (productsModel.getValueAt(r, 0).equals(sku)) {
+          int current = Integer.parseInt(productsModel.getValueAt(r, 1).toString());
+          productsModel.setValueAt(current + qty, r, 1);
+          found = true;
+          break;
         }
       }
-
-      var newPanel = new JPanel();
-      newPanel.setLayout(new BoxLayout(newPanel, BoxLayout.X_AXIS));
-
-      var lblSku = envolveInPanel(new JLabel(skuText));
-      lblSku.a().setBorder(BorderFactory.createMatteBorder(1, 0, 1, 0, Color.BLACK));
-      var lblQty = envolveInPanel(new JLabel(String.valueOf(quantity)));
-      lblQty.a().setBorder(BorderFactory.createMatteBorder(1, 0, 1, 0, Color.BLACK));
-      var btnRemoveEnvolve = envolveInPanel(new JButton("REMOVER"));
-      var btnRemove = btnRemoveEnvolve.b();
-      btnRemoveEnvolve.a().setBorder(BorderFactory.createMatteBorder(1, 0, 1, 0, Color.BLACK));
-
-      newPanel.add(lblSku.a());
-      newPanel.add(lblQty.a());
-      newPanel.add(btnRemoveEnvolve.a());
-      newPanel.setMaximumSize(new Dimension(Integer.MAX_VALUE, 45));
-
-      productsAdded.add(new Pair<>(skuText, quantity));
-      listPanelsProductsWithQuantity.add(newPanel);
-
-      btnRemove.addActionListener(e2 -> {
-        productsAdded.removeIf(p -> p.a().equals(skuText));
-        listPanelsProductsWithQuantity.remove(newPanel);
-        redrawProductsPanel.run();
-      });
-
-      redrawProductsPanel.run();
+      if (!found) {
+        productsModel.addRow(new Object[] { sku, qty });
+      }
+      skuTextField.setText("");
+      quantityTextField.setText("");
     });
 
-    panelProductsWithQuantity.setMaximumSize(new Dimension(Integer.MAX_VALUE, Integer.MAX_VALUE));
-    pnlScrollFirst.setLayout(new BoxLayout(pnlScrollFirst, BoxLayout.X_AXIS));
-    pnlScrollFirst.setMaximumSize(new Dimension(Integer.MAX_VALUE, 40));
-
-    var skuTextPanel = envolveInPanel(new JLabel("SKUS"));
-    skuTextPanel.a().setBackground(colorContentPanel());
-    skuTextPanel.a().setBorder(BorderFactory.createMatteBorder(1, 0, 1, 0, Color.BLACK));
-    var quantitiesTextPanel = envolveInPanel(new JLabel("QUANTITIES"));
-    quantitiesTextPanel.a().setBackground(colorContentPanel());
-    quantitiesTextPanel.a().setBorder(BorderFactory.createMatteBorder(1, 0, 1, 0, Color.BLACK));
-    var btnCleanAllEnvolve = envolveInPanel(new JButton("REMOVER TODO"));
-    var btnCleanAll = btnCleanAllEnvolve.b();
-    btnCleanAllEnvolve.a().setBorder(BorderFactory.createMatteBorder(1, 0, 1, 0, Color.BLACK));
-    btnCleanAll.addActionListener(e -> {
-      productsAdded.clear();
-      listPanelsProductsWithQuantity.clear();
-      redrawProductsPanel.run();
+    btnRemoveSelected.addActionListener(e -> {
+      int sel = productsTable.getSelectedRow();
+      if (sel >= 0) {
+        productsModel.removeRow(sel);
+      } else {
+        JOptionPane.showMessageDialog(panel, "Seleccione una fila para remover", "Info",
+            JOptionPane.INFORMATION_MESSAGE);
+      }
     });
-    panelProductsWithQuantity.setLayout(new BoxLayout(panelProductsWithQuantity, BoxLayout.Y_AXIS));
-    scroll.setPreferredSize(new Dimension(500, 200));
-    scroll.setMaximumSize(new Dimension(Integer.MAX_VALUE, 200));
-    pnlScrollFirst.add(skuTextPanel.a());
-    pnlScrollFirst.add(quantitiesTextPanel.a());
-    pnlScrollFirst.add(btnCleanAllEnvolve.a());
 
-    var btnRegister = new JButton("REGISTER");
+    btnRemoveAll.addActionListener(e -> {
+      productsModel.setRowCount(0);
+    });
+
     btnRegister.addActionListener(e -> {
+      String cc = ccTextField.getText().trim();
+      if (cc.isEmpty()) {
+        JOptionPane.showMessageDialog(panel, "Ingrese la cédula del cliente", "Error", JOptionPane.ERROR_MESSAGE);
+        return;
+      }
+      if (productsModel.getRowCount() == 0) {
+        JOptionPane.showMessageDialog(panel, "Agregue al menos un producto", "Error", JOptionPane.ERROR_MESSAGE);
+        return;
+      }
       var sale = new SaleToCreate();
-      sale.customer_cc = ccTextField.getText();
-      if (sale.customer_cc.equals("")) {
-        return;
-      }
-      if (productsAdded.size() == 0) {
-        return;
-      }
+      sale.customer_cc = cc;
       List<ProductSku> products = new ArrayList<>();
-      for (var pas : productsAdded) {
+      for (int r = 0; r < productsModel.getRowCount(); r++) {
         var ps = new ProductSku();
-        ps.sku = pas.a();
-        ps.quantity = pas.b();
+        ps.sku = productsModel.getValueAt(r, 0).toString();
+        ps.quantity = Integer.parseInt(productsModel.getValueAt(r, 1).toString());
         products.add(ps);
       }
       sale.product_skus_quantity = products;
@@ -1088,20 +1146,13 @@ public class Dashboard extends JFrame {
         var saleCreated = client.createSale(sale);
         var msg = "Venta Registrada\nId: " + saleCreated.sale_id + "\nCosto total: " + saleCreated.total_amount;
         JOptionPane.showMessageDialog(null, msg, "Venta Registrada", JOptionPane.INFORMATION_MESSAGE);
-        setView(panelSaleRegister());
-      } catch (Exception exception) {
-        JOptionPane.showMessageDialog(panelProduct, "Error Inesperado\nPosible Cedula o SKU Invalido",
-            "Error Registrando Venta", JOptionPane.ERROR_MESSAGE);
+        setView(panelSaleRegister()); // refrescar la vista
+      } catch (Exception ex) {
+        JOptionPane.showMessageDialog(panel, "Error registrando venta. Verifique cédula o SKU", "Error",
+            JOptionPane.ERROR_MESSAGE);
+        System.out.println(ex);
       }
     });
-    title.setAlignmentX(SwingConstants.WEST);
-    panel.add(title, BorderLayout.CENTER);
-    panel.add(panelCc);
-    panel.add(panelProduct);
-    panel.add(scroll);
-    btnRegister.setAlignmentX(SwingConstants.CENTER);
-    panel.add(btnRegister, BorderLayout.WEST);
-    redrawProductsPanel.run();
 
     return panel;
   }
