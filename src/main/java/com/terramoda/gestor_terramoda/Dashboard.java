@@ -208,10 +208,16 @@ public class Dashboard extends JFrame {
         btnSalesList,
         btnReports);
 
+    JPanel panelIconUniversidadNavidad = new BackgroundPanel("/images/uni_navidad.png");
+    panelIconUniversidadNavidad.setAlignmentX(SwingConstants.RIGHT);
+    panelIconUniversidadNavidad.setBorder(new EmptyBorder(20, 0, 0, 20));
+    panelIconUniversidadNavidad.setPreferredSize(new Dimension(150, 40));
+
     btnsSidebar.forEach(b -> {
       sidebar.add(b);
       b.setEnabled(false);
     });
+    sidebar.add(panelIconUniversidadNavidad);
 
     // ---- CONTENT PANEL ---
     JPanel root = new JPanel(new BorderLayout());
@@ -226,11 +232,13 @@ public class Dashboard extends JFrame {
     terramodaTitle.setHorizontalAlignment(SwingConstants.LEFT);
     terramodaTitle.setBorder(new EmptyBorder(0, 20, 0, 0));
 
-    JButton btnAcceder = new JButton("ACCEDER");
-    btnAcceder.setBorderPainted(false);
-    btnAcceder.setFont(new Font(font(), Font.BOLD, fontSize()));
-    btnAcceder.setBorder(new EmptyBorder(0, 0, 0, 20));
-    removeBgButton(btnAcceder);
+    JPanel panelIconUniversidadPanel = new BackgroundPanel("/images/uni_image.png");
+    panelIconUniversidadPanel.setAlignmentX(SwingConstants.RIGHT);
+    panelIconUniversidadPanel.setBorder(new EmptyBorder(20, 0, 0, 20));
+    panelIconUniversidadPanel.setPreferredSize(new Dimension(150, 40));
+
+    header.add(terramodaTitle, BorderLayout.WEST);
+    header.add(panelIconUniversidadPanel, BorderLayout.EAST);
 
     // AUTH - reemplazar bloque existente
     JPanel panelAuth = new JPanel(new GridBagLayout());
@@ -280,7 +288,6 @@ public class Dashboard extends JFrame {
     gbc.anchor = GridBagConstraints.EAST;
     gbc.fill = GridBagConstraints.NONE;
     JButton localAcceder = new JButton("ACCEDER");
-    removeBgButton(localAcceder);
     panelAuth.add(localAcceder, gbc);
 
     // si prefieres usar el btnAcceder del header, elimina el localAcceder y usa el
@@ -291,7 +298,6 @@ public class Dashboard extends JFrame {
       data.pass = new String(passTextField.getPassword());
       try {
         client.login(data);
-        btnAcceder.setEnabled(false);
         setView(panelSaleRegister());
         btnsSidebar.forEach(b -> b.setEnabled(true));
       } catch (Exception e) {
@@ -299,8 +305,6 @@ public class Dashboard extends JFrame {
       }
     });
 
-    header.add(terramodaTitle, BorderLayout.WEST);
-    header.add(btnAcceder, BorderLayout.EAST);
 
     JPanel contentFather = new BackgroundPanel(
         "/images/uni_image.png");
