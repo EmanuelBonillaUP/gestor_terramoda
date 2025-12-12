@@ -209,7 +209,7 @@ public class Dashboard extends JFrame {
         btnReports);
 
     JPanel panelIconUniversidadNavidad = new BackgroundPanel("/images/uni_navidad.png");
-    panelIconUniversidadNavidad.setAlignmentX(SwingConstants.RIGHT);
+    panelIconUniversidadNavidad.setOpaque(false);
     panelIconUniversidadNavidad.setBorder(new EmptyBorder(20, 0, 0, 20));
     panelIconUniversidadNavidad.setPreferredSize(new Dimension(150, 40));
 
